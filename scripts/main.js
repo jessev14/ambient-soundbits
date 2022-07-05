@@ -1,4 +1,4 @@
-//import { libWrapper } from "../lib/shim.js";
+import { libWrapper } from "../lib/shim.js";
 
 export const moduleName = "ambient-soundbits";
 
