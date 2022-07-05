@@ -17,4 +17,5 @@ Each ambient sound is labeled with the sound's filename to make it easier to pre
 
 Soundbits can be created by using the Create Soundbits tool on the sound control bar or by holding the Shift-key when drag&dropping a sound from a playlist onto the canvas.
 
-<img src="./ambient-soundbit.png">
+
+![Ambient Soundbits](/ambient-soundbits.png)
