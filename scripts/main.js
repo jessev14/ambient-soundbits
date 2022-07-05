@@ -38,8 +38,8 @@ Hooks.once("init", () => {
     libWrapper.register(moduleName, "CONFIG.AmbientSound.objectClass.prototype._onClickRight", playSoundbit, "MIXED");
 
     // Allow soundbits to be hovered on any layer
-    CONFIG.AmbientSound.objectClass.prototype._canHover = function() {
-        return this.layer._active ||this.document.getFlag(moduleName, "soundbit");
+    CONFIG.AmbientSound.objectClass.prototype._canHover = function () {
+        return this.layer._active || this.document.getFlag(moduleName, "soundbit");
     };
 
     // Register module settings
@@ -60,7 +60,7 @@ Hooks.once("init", () => {
     // Register socket handler
     game.socket.on(`module.${moduleName}`, async data => {
         const { action } = data;
-        
+
         if (action === "playSoundbit") {
             const { src } = data;
             const sound = await game.audio.play(src, { volume: 1 });
@@ -150,7 +150,7 @@ Hooks.on("renderAmbientSoundConfig", (app, html, data) => {
 
 // If flagging ambient sound as soundbit, update radius to 0
 Hooks.on("preUpdateAmbientSound", (sound, diff, options, userID) => {
-    if (diff.flags?.[moduleName]?.soundbit) return sound.update({radius: 0});
+    if (diff.flags?.[moduleName]?.soundbit) return sound.update({ radius: 0 });
 });
 
 // Re-draw ambient sound objects to apply new tooltip text
@@ -220,7 +220,7 @@ async function dropSoundbit(wrapper, event, data) {
 function new_refreshControl(wrapper) {
     wrapper();
     if (!this.document.getFlag(moduleName, "soundbit")) return;
-    
+
     const texture = this.soundbit ? `modules/${moduleName}/img/pause-circle-solid.svg` : `modules/${moduleName}/img/play-circle-solid.svg`;
     this.controlIcon.texture = getTexture(texture);
     this.controlIcon.draw();
@@ -235,7 +235,7 @@ function new_drawControlIcon() {
     const texture = !this.document.getFlag(moduleName, "soundbit")
         ? CONFIG.controlIcons.sound
         : `modules/${moduleName}/img/play-circle-solid.svg`;
-    let icon = new ControlIcon({texture, size: size});
+    let icon = new ControlIcon({ texture, size: size });
     icon.x -= (size * 0.5);
     icon.y -= (size * 0.5);
     return icon;
@@ -256,7 +256,7 @@ async function new_draw(wrapper) {
     text.position.set(0, halfPad);
 
     this.tooltip = this.addChild(text);
-    
+
     return this;
 }
 
