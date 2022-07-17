@@ -62,8 +62,8 @@ Hooks.once("init", () => {
         const { action } = data;
 
         if (action === "playSoundbit") {
-            const { src } = data;
-            const sound = await game.audio.play(src, { volume: 1 });
+            const { src, volume } = data;
+            const sound = await game.audio.play(src, { volume });
             sound.id = data.id;
         }
 
@@ -208,7 +208,7 @@ async function dropSoundbit(wrapper, event, data) {
     if (!coords) return false;
     const soundData = {
         path: sound.data.path,
-        volume: 1,
+        volume: sound.data.volume,
         x: coords[0],
         y: coords[1],
         flags: { [moduleName]: { soundbit: true } }
@@ -282,7 +282,7 @@ async function playSoundbit(wrapper, event) {
     const src = this.document.data.path;
     if (!src) return ui.notifications.warn("No sound source set.");
 
-    this.soundbit = await game.audio.play(src, { volume: 1 });
+    this.soundbit = await game.audio.play(src, { volume: this.document.data.volume });
     this.soundbit.on("end", () => {
         this.soundbit = null;
         this.refresh();
@@ -290,7 +290,7 @@ async function playSoundbit(wrapper, event) {
     this.soundbit.id = this.id;
 
     // Play soundbit on other clients
-    game.socket.emit(`module.${moduleName}`, { action: "playSoundbit", src, id: this.id });
+    game.socket.emit(`module.${moduleName}`, { action: "playSoundbit", src, id: this.id, volume: this.document.data.volume });
 
     // Update control icon texture
     this.controlIcon.texture = getTexture(`modules/${moduleName}/img/pause-circle-solid.svg`);
