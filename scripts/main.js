@@ -1,303 +1,314 @@
-import { libWrapper } from "../lib/shim.js";
+import { libWrapper } from '../lib/shim.js';
+import { normalizeAudio } from './audio-normalizer.js';
+import { pauseMusic, resumeMusic } from './sound-manager.js';
+import { createSoundWaves } from './soundwaves.js';
 
-export const moduleName = "ambient-soundbits";
+export const moduleName = 'ambient-soundbits';
 
 const soundbitDefaultData = {
-    radius: 0,
-    easing: false,
-    repeat: false,
-    walls: false
+	radius: 0,
+	easing: false,
+	repeat: false,
+	walls: false,
 };
 
+Hooks.once('init', () => {
+	// Keep ambient sound placeables visible on other layers
+	libWrapper.register(moduleName, 'CONFIG.Canvas.layers.sounds.layerClass.prototype.deactivate', newDeactivate, 'WRAPPER');
 
-Hooks.once("init", () => {
-    // Keep ambient sound placeables visible on other layers
-    libWrapper.register(moduleName, "CONFIG.Canvas.layers.sounds.layerClass.prototype.deactivate", newDeactivate, "WRAPPER");
+	// Show/hide ambient sound ranges
+	libWrapper.register(moduleName, 'CONFIG.AmbientSound.objectClass.prototype.refresh', new_ambientSoundRefresh, 'WRAPPER');
 
-    // Show/hide ambient sound ranges
-    libWrapper.register(moduleName, "CONFIG.AmbientSound.objectClass.prototype.refresh", new_ambientSoundRefresh, "WRAPPER");
+	// Cancel ambient sound draw workflow if soundbit tool is active
+	libWrapper.register(moduleName, 'CONFIG.Canvas.layers.sounds.layerClass.prototype._onDragLeftStart', cancelDrawing, 'MIXED');
+	libWrapper.register(moduleName, 'CONFIG.Canvas.layers.sounds.layerClass.prototype._onDragLeftMove', cancelDrawing, 'MIXED');
 
-    // Cancel ambient sound draw workflow if soundbit tool is active
-    libWrapper.register(moduleName, "CONFIG.Canvas.layers.sounds.layerClass.prototype._onDragLeftStart", cancelDrawing, "MIXED");
-    libWrapper.register(moduleName, "CONFIG.Canvas.layers.sounds.layerClass.prototype._onDragLeftMove", cancelDrawing, "MIXED");
+	// If soundbit tool active, create soundbit on canvas left click
+	libWrapper.register(moduleName, 'CONFIG.Canvas.layers.sounds.layerClass.prototype._onClickLeft', createSoundbit, 'WRAPPER');
 
-    // If soundbit tool active, create soundbit on canvas left click
-    libWrapper.register(moduleName, "CONFIG.Canvas.layers.sounds.layerClass.prototype._onClickLeft", createSoundbit, "WRAPPER");
+	// If Shift held during drag&drop, create soundbit instead
+	libWrapper.register(moduleName, 'CONFIG.Canvas.layers.sounds.layerClass.prototype._onDropData', dropSoundbit, 'MIXED');
 
-    // If Shift held during drag&drop, create soundbit instead
-    libWrapper.register(moduleName, "CONFIG.Canvas.layers.sounds.layerClass.prototype._onDropData", dropSoundbit, "MIXED");
+	// Change soundbit icon
+	libWrapper.register(moduleName, 'CONFIG.AmbientSound.objectClass.prototype.refreshControl', new_refreshControl, 'WRAPPER');
+	libWrapper.register(moduleName, 'CONFIG.AmbientSound.objectClass.prototype._drawControlIcon', new_drawControlIcon, 'OVERRIDE');
 
-    // Change soundbit icon
-    libWrapper.register(moduleName, "CONFIG.AmbientSound.objectClass.prototype.refreshControl", new_refreshControl, "WRAPPER");
-    libWrapper.register(moduleName, "CONFIG.AmbientSound.objectClass.prototype._drawControlIcon", new_drawControlIcon, "OVERRIDE");
+	// Add tooltip to soundbit control icon
+	libWrapper.register(moduleName, 'CONFIG.AmbientSound.objectClass.prototype.draw', new_draw, 'WRAPPER');
 
-    // Add tooltip to soundbit control icon
-    libWrapper.register(moduleName, "CONFIG.AmbientSound.objectClass.prototype.draw", new_draw, "WRAPPER");
+	// Play soundbit on right-click
+	libWrapper.register(moduleName, 'CONFIG.AmbientSound.objectClass.prototype._onClickRight', playSoundbit, 'MIXED');
 
-    // Play soundbit on right-click
-    libWrapper.register(moduleName, "CONFIG.AmbientSound.objectClass.prototype._onClickRight", playSoundbit, "MIXED");
+	// Allow soundbits to be hovered on any layer
+	CONFIG.AmbientSound.objectClass.prototype._canHover = function () {
+		return this.layer._active || this.document.getFlag(moduleName, 'soundbit');
+	};
 
-    // Allow soundbits to be hovered on any layer
-    CONFIG.AmbientSound.objectClass.prototype._canHover = function () {
-        return this.layer._active || this.document.getFlag(moduleName, "soundbit");
-    };
+	// Register module settings
+	game.settings.register(moduleName, 'soundsVisible', {
+		scope: 'world',
+		type: Boolean,
+		default: false,
+		onChange: () => canvas.sounds.placeables.forEach((p) => p.refresh()),
+	});
 
-    // Register module settings
-    game.settings.register(moduleName, "soundsVisible", {
-        scope: "world",
-        type: Boolean,
-        default: false,
-        onChange: () => canvas.sounds.placeables.forEach(p => p.refresh())
-    });
+	game.settings.register(moduleName, 'soundRangesVisible', {
+		scope: 'world',
+		type: Boolean,
+		default: true,
+		onChange: () => canvas.sounds.placeables.forEach((p) => p.refresh()),
+	});
 
-    game.settings.register(moduleName, "soundRangesVisible", {
-        scope: "world",
-        type: Boolean,
-        default: true,
-        onChange: () => canvas.sounds.placeables.forEach(p => p.refresh())
-    });
+	// Register socket handler
+	game.socket.on(`module.${moduleName}`, async (data) => {
+		const { action } = data;
 
-    // Register socket handler
-    game.socket.on(`module.${moduleName}`, async data => {
-        const { action } = data;
+		if (action === 'playSoundbit') {
+			const { src, volume } = data;
+			const sound = await game.audio.play(src, { volume });
+			sound.id = data.id;
+		}
 
-        if (action === "playSoundbit") {
-            const { src, volume } = data;
-            const sound = await game.audio.play(src, { volume });
-            sound.id = data.id;
-        }
+		if (action === 'stopSoundbit') {
+			const { id } = data;
+			for (const playing of Array.from(game.audio.playing.values())) {
+				if (playing.id === id && playing.playing) {
+					playing.stop();
+					break;
+				}
+			}
+		}
+	});
 
-        if (action === "stopSoundbit") {
-            const { id } = data;
-            for (const playing of Array.from(game.audio.playing.values())) {
-                if (playing.id === id && playing.playing) {
-                    playing.stop();
-                    break;
-                }
-            }
-        }
-    });
+	// Register module hotkeys
+	game.keybindings.register(moduleName, 'playSoundbit', {
+		name: 'Play/Stop Hovered Soundbit',
+		editable: [
+			{
+				key: 'KeyP',
+			},
+		],
+		onDown: () => {
+			const soundbit = canvas.sounds._hover;
+			if (!soundbit?.document.getFlag(moduleName, 'soundbit')) return;
 
-    // Register module hotkeys
-    game.keybindings.register(moduleName, "playSoundbit", {
-        name: "Play/Stop Hovered Soundbit",
-        editable: [
-            {
-                key: "KeyP"
-            }
-        ],
-        onDown: () => {
-            const soundbit = canvas.sounds._hover;
-            if (!soundbit?.document.getFlag(moduleName, "soundbit")) return;
-
-            playSoundbit.call(soundbit);
-        }
-    })
+			playSoundbit.call(soundbit);
+		},
+	});
 });
 
 // Load textures
-Hooks.once("setup", async () => {
-    await loadTexture(`modules/${moduleName}/img/play-circle-solid.svg`);
-    await loadTexture(`modules/${moduleName}/img/pause-circle-solid.svg`);
+Hooks.once('setup', async () => {
+	await loadTexture(`modules/${moduleName}/img/play-circle-solid.svg`);
+	await loadTexture(`modules/${moduleName}/img/pause-circle-solid.svg`);
 });
 
-
 // Add new buttons to sound toolbar
-Hooks.on("getSceneControlButtons", controls => {
-    if (game.user.role < 3) return;
+Hooks.on('getSceneControlButtons', (controls) => {
+	if (game.user.role < 3) return;
 
-    const bar = controls.find(c => c.name === "sounds");
-    bar.tools.splice(1, 0,
-        {
-            "name": "soundbit",
-            "title": "Draw Ambient Soundbit",
-            "icon": "fas fa-play-circle",
-        }
-    );
+	const bar = controls.find((c) => c.name === 'sounds');
+	bar.tools.splice(1, 0, {
+		name: 'soundbit',
+		title: 'Draw Ambient Soundbit',
+		icon: 'fas fa-play-circle',
+	});
 
-    bar.tools.splice(3, 0,
-        {
-            "name": "toggleDisplay",
-            "title": "Toggle Ambient Sound Display",
-            "icon": "fas fa-map-pin",
-            onClick: toggled => game.settings.set(moduleName, "soundsVisible", toggled),
-            "toggle": true,
-            "active": game.settings.get(moduleName, "soundsVisible")
-        },
-        {
-            "name": "toggleRange",
-            "title": "Toggle Ambient Sound Range Display",
-            "icon": "far fa-circle",
-            onClick: toggled => game.settings.set(moduleName, "soundRangesVisible", toggled),
-            "toggle": true,
-            "active": game.settings.get(moduleName, "soundRangesVisible")
-        }
-    );
+	bar.tools.splice(
+		3,
+		0,
+		{
+			name: 'toggleDisplay',
+			title: 'Toggle Ambient Sound Display',
+			icon: 'fas fa-map-pin',
+			onClick: (toggled) => game.settings.set(moduleName, 'soundsVisible', toggled),
+			toggle: true,
+			active: game.settings.get(moduleName, 'soundsVisible'),
+		},
+		{
+			name: 'toggleRange',
+			title: 'Toggle Ambient Sound Range Display',
+			icon: 'far fa-circle',
+			onClick: (toggled) => game.settings.set(moduleName, 'soundRangesVisible', toggled),
+			toggle: true,
+			active: game.settings.get(moduleName, 'soundRangesVisible'),
+		}
+	);
 });
 
 // Add soundbit checkbox to ambient sound config
-Hooks.on("renderAmbientSoundConfig", (app, html, data) => {
-    const soundbitCheck = document.createElement(`div`);
-    soundbitCheck.classList.add("form-group");
-    soundbitCheck.innerHTML = `
-        <label>Soundbit</label>
-        <input type="checkbox" name="flags.${moduleName}.soundbit" ${app.object.getFlag(moduleName, "soundbit") ? "checked" : ""}>
-        </div>
-    `;
-    html[0].querySelector(`button[type="submit"]`).before(soundbitCheck);
-    app.setPosition({ height: "auto" });
+Hooks.on('renderAmbientSoundConfig', (app, html, data) => {
+	const soundbit = $(`
+    <fieldset style="margin-bottom: 5px">
+    <legend>Soundbit</legend>
+    <div class="form-group">
+        <label>Active</label>
+        <input type="checkbox" name="flags.${moduleName}.soundbit" ${app.object.getFlag(moduleName, 'soundbit') ? 'checked' : ''}>
+    </div>
+    <div class="form-group">
+        <label>Pause Playlists</label>
+        <input type="checkbox" name="flags.${moduleName}.pause" ${app.object.getFlag(moduleName, 'pause') ? 'checked' : ''}>
+    </div>
+    </fieldset>
+    `);
+
+	html[0].querySelector(`button[type="submit"]`).before(soundbit[0]);
+	app.setPosition({ height: 'auto' });
 });
 
 // If flagging ambient sound as soundbit, update radius to 0
-Hooks.on("preUpdateAmbientSound", (sound, diff, options, userID) => {
-    if (diff.flags?.[moduleName]?.soundbit) return sound.update({ radius: 0 });
-});
+//Hooks.on('preUpdateAmbientSound', (sound, diff, options, userID) => {
+//	if (diff.flags?.[moduleName]?.soundbit) return sound.update({ radius: 0 });
+//});
 
 // Re-draw ambient sound objects to apply new tooltip text
-Hooks.on("updateAmbientSound", (sound, options, userID) => {
-    return sound.object.draw();
+Hooks.on('updateAmbientSound', (sound, options, userID) => {
+	return sound.object.draw();
 });
 
-
 function newDeactivate(wrapper) {
-    wrapper();
+	wrapper();
 
-    const soundsVisible = game.settings.get(moduleName, "soundsVisible") && game.user.role > 2;
-    if (this.objects) {
-        this.objects.visible = soundsVisible;
-        this.placeables.forEach(p => p.controlIcon.visible = soundsVisible);
-    }
-    this.interactiveChildren = true;
+	const soundsVisible = game.settings.get(moduleName, 'soundsVisible') && game.user.role > 2;
+	if (this.objects) {
+		this.objects.visible = soundsVisible;
+		this.placeables.forEach((p) => (p.controlIcon.visible = soundsVisible));
+	}
+	this.interactiveChildren = true;
 
-    return this;
+	return this;
 }
 
 function new_ambientSoundRefresh(wrapper) {
-    const _this = wrapper();
+	const _this = wrapper();
 
-    if (!game.settings.get(moduleName, "soundRangesVisible")) _this.field.clear();
+	if (!game.settings.get(moduleName, 'soundRangesVisible')) _this.field.clear();
 
-    return _this;
+	return _this;
 }
 
 async function cancelDrawing(wrapper, event) {
-    if (ui.controls.tool.name !== "soundbit") return wrapper(event);
+	if (ui.controls.tool.name !== 'soundbit') return wrapper(event);
 }
 
 async function createSoundbit(wrapper, event) {
-    wrapper(event);
-    if (ui.controls.tool.name !== "soundbit") return;
+	wrapper(event);
+	if (ui.controls.tool.name !== 'soundbit') return;
 
-    const origin = event.data.origin;
-    const doc = new AmbientSoundDocument({ x: origin.x, y: origin.y, type: "l", flags: { [moduleName]: { soundbit: true } } }, { parent: canvas.scene });
-    const sound = new AmbientSound(doc);
-    this.preview.addChild(sound);
-    await sound.draw();
-    sound.sheet.render(true, { top: event.clientY - 20, left: event.clientX + 40 });
+	const origin = event.origin;
+	const doc = new AmbientSoundDocument({ x: origin.x, y: origin.y, type: 'l', flags: { [moduleName]: { soundbit: true } } }, { parent: canvas.scene });
+	const sound = new AmbientSound(doc);
+	this.preview.addChild(sound);
+	await sound.draw();
+	sound.sheet.render(true, { top: event.clientY - 20, left: event.clientX + 40 });
 }
 
 async function dropSoundbit(wrapper, event, data) {
-    if (!event.shiftKey) return wrapper(event, data);
+	if (!event.shiftKey) return wrapper(event, data);
 
-    const playlist = game.playlists.get(data.playlistId);
-    const sound = playlist?.sounds.get(data.soundId);
-    if (!sound) return false;
+	const playlist = game.playlists.get(data.playlistId);
+	const sound = playlist?.sounds.get(data.soundId);
+	if (!sound) return false;
 
-    // Get the world-transformed drop position.
-    const coords = this._canvasCoordinatesFromDrop(event);
-    if (!coords) return false;
-    const soundData = {
-        path: sound.data.path,
-        volume: sound.data.volume,
-        x: coords[0],
-        y: coords[1],
-        flags: { [moduleName]: { soundbit: true } }
-    };
-    mergeObject(soundData, soundbitDefaultData);
-    return this._createPreview(soundData, { top: event.clientY - 20, left: event.clientX + 40 });
+	// Get the world-transformed drop position.
+	const coords = this._canvasCoordinatesFromDrop(event);
+	if (!coords) return false;
+	const soundData = {
+		path: sound.path,
+		volume: sound.volume,
+		x: coords[0],
+		y: coords[1],
+		flags: { [moduleName]: { soundbit: true } },
+	};
+	mergeObject(soundData, soundbitDefaultData);
+	return this._createPreview(soundData, { top: event.clientY - 20, left: event.clientX + 40 });
 }
 
 function new_refreshControl(wrapper) {
-    wrapper();
-    if (!this.document.getFlag(moduleName, "soundbit")) return;
+	wrapper();
+	if (!this.document.getFlag(moduleName, 'soundbit')) return;
 
-    const texture = this.soundbit ? `modules/${moduleName}/img/pause-circle-solid.svg` : `modules/${moduleName}/img/play-circle-solid.svg`;
-    this.controlIcon.texture = getTexture(texture);
-    this.controlIcon.draw();
-    this.controlIcon.visible = true;
-    this.controlIcon.border.visible = this._hover;
+	const texture = this.soundbit ? `modules/${moduleName}/img/pause-circle-solid.svg` : `modules/${moduleName}/img/play-circle-solid.svg`;
+	this.controlIcon.texture = getTexture(texture);
+	this.controlIcon.draw();
+	this.controlIcon.visible = true;
+	this.controlIcon.border.visible = this._hover;
 
-    if (this.tooltip) this.tooltip.visible = this._hover;
+	if (this.tooltip) this.tooltip.visible = this._hover;
 }
 
 function new_drawControlIcon() {
-    const size = Math.max(Math.round((canvas.dimensions.size * 0.5) / 20) * 20, 40);
-    const texture = !this.document.getFlag(moduleName, "soundbit")
-        ? CONFIG.controlIcons.sound
-        : `modules/${moduleName}/img/play-circle-solid.svg`;
-    let icon = new ControlIcon({ texture, size: size });
-    icon.x -= (size * 0.5);
-    icon.y -= (size * 0.5);
-    return icon;
+	const size = Math.max(Math.round((canvas.dimensions.size * 0.5) / 20) * 20, 40);
+	const texture = !this.document.getFlag(moduleName, 'soundbit') ? CONFIG.controlIcons.sound : `modules/${moduleName}/img/play-circle-solid.svg`;
+	let icon = new ControlIcon({ texture, size: size });
+	icon.x -= size * 0.5;
+	icon.y -= size * 0.5;
+	return icon;
 }
 
 async function new_draw(wrapper) {
-    await wrapper();
-    if (!this.document.data.path) return this;
+	await wrapper();
+	if (!this.document.path) return this;
 
-    // Create the Text object
-    const textStyle = PreciseText.getTextStyle();
-    const text = new PreciseText(getFileName(this.document.data.path), textStyle);
-    text.visible = false;
-    const halfPad = (0.5 * 40) + 12;
+	// Create the Text object
+	const textStyle = PreciseText.getTextStyle();
+	const text = new PreciseText(getFileName(this.document.path), textStyle);
+	text.visible = false;
+	const halfPad = 0.5 * 40 + 12;
 
-    // Configure Text position
-    text.anchor.set(0.5, 0);
-    text.position.set(0, halfPad);
+	// Configure Text position
+	text.anchor.set(0.5, 0);
+	text.position.set(0, halfPad);
 
-    this.tooltip = this.addChild(text);
+	this.tooltip = this.addChild(text);
 
-    return this;
+	return this;
 }
 
 async function playSoundbit(wrapper, event) {
-    if (!this.document.getFlag(moduleName, "soundbit")) return wrapper(event);
+	if (!this.document.getFlag(moduleName, 'soundbit')) return wrapper(event);
 
-    // Stop soundbit if currently playing
-    let isPlaying = false;
-    for (const playing of Array.from(game.audio.playing.values())) {
-        if (playing.id === this.id && playing.playing) {
-            isPlaying = true;
-            playing.stop();
-            this.soundbit = null;
-            this.refresh();
-            break;
-        }
-    }
+	// Stop soundbit if currently playing
+	let isPlaying = false;
+	for (const playing of Array.from(game.audio.playing.values())) {
+		if (playing.id === this.id && playing.playing) {
+			isPlaying = true;
+			playing.stop();
+			this.soundbit = null;
+			this.refresh();
+			break;
+		}
+	}
 
-    // Stop playing on other clients
-    if (isPlaying) return game.socket.emit(`module.${moduleName}`, { action: "stopSoundbit", id: this.id });
+	// Stop playing on other clients
+	if (isPlaying) return game.socket.emit(`module.${moduleName}`, { action: 'stopSoundbit', id: this.id });
 
-    // Play soundbit
-    const src = this.document.data.path;
-    if (!src) return ui.notifications.warn("No sound source set.");
+	// Play soundbit
+	const src = this.document.path;
+	if (!src) return ui.notifications.warn('No sound source set.');
 
-    this.soundbit = await game.audio.play(src, { volume: this.document.data.volume });
-    this.soundbit.on("end", () => {
-        this.soundbit = null;
-        this.refresh();
-    });
-    this.soundbit.id = this.id;
+	const sound = (this.soundbit = new Sound(src));
+	await sound.load();
+	await normalizeAudio(sound);
+	pauseMusic(this.document);
+	sound.play({ volume: this.document.volume });
+	createSoundWaves(this.document.object);
 
-    // Play soundbit on other clients
-    game.socket.emit(`module.${moduleName}`, { action: "playSoundbit", src, id: this.id, volume: this.document.data.volume });
+	sound.on('end', () => {
+		this.soundbit = null;
+		this.refresh();
+		resumeMusic(this.document);
+	});
+	sound.id = this.id;
 
-    // Update control icon texture
-    this.controlIcon.texture = getTexture(`modules/${moduleName}/img/pause-circle-solid.svg`);
-    this.controlIcon.draw();
+	// Play soundbit on other clients
+	game.socket.emit(`module.${moduleName}`, { action: 'playSoundbit', src, id: this.id, volume: this.document.volume });
+
+	// Update control icon texture
+	this.controlIcon.texture = getTexture(`modules/${moduleName}/img/pause-circle-solid.svg`);
+	this.controlIcon.draw();
 }
-
 
 const getFileName = (str) => {
-    return decodeURI(str.split('\\').pop().split('/').pop().split('.')[0]);
-}
+	return decodeURI(str.split('\\').pop().split('/').pop().split('.')[0]);
+};
