@@ -1,6 +1,6 @@
 export function createSoundWaves(sound) {
 	const size = sound.radius * 1.5;
-	const duration = sound.sound.duration * 1000;
+	const duration = Math.max(2000, sound.sound.duration * 1000);
 	const rings = ~~(duration / 2000);
 	const name = sound.id;
 	canvas.ping(

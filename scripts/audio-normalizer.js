@@ -32,7 +32,7 @@ function getAverageLoudness(audioBufferSourceNode) {
 	}
 
 	const dBFS = sum / numFrames;
-	const LUFS = -0.691 + dBFS - 10 * Math.log10(duration) - 14;
+	const LUFS = -0.691 + dBFS - 10 * Math.log10(duration);
 
 	return LUFS;
 }
@@ -44,12 +44,20 @@ export async function normalizeAudio(sound) {
 	// Creates the Audio Worklet
 	const audioContext = sound.context;
 	const loudnessNormalizationNode = new AudioWorkletNode(audioContext, 'loudness-normalizer');
+
 	sound.node.connect(loudnessNormalizationNode);
+
+	const volumeModifier = 20 * Math.log10(sound.volume);
+
 	loudnessNormalizationNode.connect(audioContext.destination);
-	loudnessNormalizationNode.port.postMessage({ type: 'loudness', loudness: getAverageLoudness(sound.node) });
+	loudnessNormalizationNode.port.postMessage({ type: 'loudness', loudness: getAverageLoudness(sound.node) - volumeModifier });
 
 	sound.on('end', () => {
-		// Disconnect the AudioWorkletNode from the audio graph once hte Sound finishes
-		loudnessNormalizationNode.disconnect();
+		// Disconnect the AudioWorkletNode from the audio graph once the Sound finishes
+		try {
+			loudnessNormalizationNode.disconnect();
+		} catch (err) {
+			console.error(err);
+		}
 	});
 }

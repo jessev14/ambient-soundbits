@@ -319,6 +319,7 @@ function localVolume(sound) {
 		if (sound.document.easing) volume *= canvas.sounds._getEasingVolume(distance, r);
 		if (!globalVolume || volume > globalVolume) globalVolume = volume;
 	}
+	if (game.user.isGM && listeners.length === 0) globalVolume = sound.document.volume;
 	return globalVolume;
 }
 
