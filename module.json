@@ -2,7 +2,7 @@
 	"id": "ambient-soundbits",
 	"title": "Ambient Soundbits",
 	"description": "This module allows GM users to create \"soundbits.\" These are ambient sounds on the canvas that have a radius of 0, but can be activated (via right click or P hotkey) to play the associated sound to all users.",
-	"version": "1.1.0",
+	"version": "1.1.1",
 	"authors": [
 		{
 			"name": "jessev14"
