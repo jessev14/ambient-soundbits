@@ -17,6 +17,6 @@
 	"compatibleCoreVersion": "10",
 	"socket": true,
 	"url": "https://github.com/elizeuangelo/fvtt-module-ambient-soundbits",
-	"manifest": "https://github.com/elizeuangelo/ambient-soundbits/releases/latest/download/module.json",
+	"manifest": "https://raw.githubusercontent.com/elizeuangelo/fvtt-module-ambient-soundbits/main/module.json",
 	"download": "https://github.com/elizeuangelo/fvtt-module-ambient-soundbits/releases/latest/download/ambient-soundbits.zip"
 }
