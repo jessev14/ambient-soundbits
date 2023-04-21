@@ -1,5 +1,4 @@
 import { libWrapper } from '../lib/shim.js';
-import { normalizeAudio } from './audio-normalizer.js';
 import { pauseMusic, resumeMusic } from './sound-manager.js';
 import { createSoundWaves } from './soundwaves.js';
 
@@ -40,7 +39,7 @@ Hooks.once('init', () => {
 	libWrapper.register(moduleName, 'CONFIG.AmbientSound.objectClass.prototype.draw', new_draw, 'WRAPPER');
 
 	//  Changes the canHover so Audio might be hovered in any layer
-	libWrapper.register(moduleName, 'CONFIG.AmbientSound.objectClass.prototype._canHover', new_canHover, 'WRAPPER');
+	libWrapper.register(moduleName, 'CONFIG.AmbientSound.objectClass.prototype._canHover', new_canHover, 'OVERRIDE');
 
 	// Play soundbit on right-click
 	libWrapper.register(moduleName, 'CONFIG.AmbientSound.objectClass.prototype._onClickRight', playSoundbit, 'MIXED');
@@ -78,6 +77,7 @@ Hooks.once('init', () => {
 					break;
 				}
 			}
+			CanvasAnimation.terminateAnimation(id);
 		}
 	});
 
@@ -90,7 +90,7 @@ Hooks.once('init', () => {
 			},
 		],
 		onDown: () => {
-			const soundbit = canvas.sounds._hover;
+			const soundbit = canvas.sounds.hover;
 			if (!soundbit?.document.getFlag(moduleName, 'soundbit')) return;
 
 			playSoundbit.call(soundbit);
@@ -272,9 +272,8 @@ function new_drawControlIcon() {
 }
 
 function new_canHover(wrapper, user, event) {
-	const canControl = wrapper(user, event);
 	// Allow soundbits to be hovered on any layer
-	return (this.layer.active || this.document.getFlag(moduleName, 'soundbit')) && canControl;
+	return this.layer.active || this.document.getFlag(moduleName, 'soundbit');
 }
 
 async function new_draw(wrapper) {
@@ -349,9 +348,13 @@ async function playSoundbit(wrapper, event) {
 
 	const sound = (this.soundbit = new Sound(src));
 	await sound.load();
-	await normalizeAudio(sound);
+
 	pauseMusic(this.document);
-	const volume = this.document.getFlag(moduleName, 'global') ? this.document.volume : localVolume(this.document.object);
+	let volume = this.document.getFlag(moduleName, 'global') ? this.document.volume : localVolume(this.document.object);
+
+	// Change volume to exponential
+	//volume = 2 ** (5 * volume - 5);
+
 	sound.play({ volume });
 	if (this.document.getFlag(moduleName, 'soundwaves')) createSoundWaves(this.document.object);
 
