@@ -19,9 +19,6 @@ Hooks.once('init', () => {
 	libWrapper.register(moduleName, 'CONFIG.Canvas.layers.sounds.layerClass.prototype._onDragLeftStart', cancelDrawing, 'MIXED');
 	libWrapper.register(moduleName, 'CONFIG.Canvas.layers.sounds.layerClass.prototype._onDragLeftMove', cancelDrawing, 'MIXED');
 
-	// If soundbit tool active, create soundbit on canvas left click
-	//libWrapper.register(moduleName, 'CONFIG.Canvas.layers.sounds.layerClass.prototype._onClickLeft', createSoundbit, 'WRAPPER');
-
 	// If Shift held during drag&drop, create soundbit instead
 	libWrapper.register(moduleName, 'CONFIG.Canvas.layers.sounds.layerClass.prototype._onDropData', dropSoundbit, 'MIXED');
 
@@ -57,6 +54,17 @@ Hooks.once('init', () => {
 		type: Boolean,
 		default: true,
 		onChange: () => canvas.sounds.placeables.forEach((p) => p.refresh()),
+	});
+
+	game.settings.register(moduleName, 'lastConfig', {
+		scope: 'client',
+		type: Object,
+		default: {
+			soundbit: false,
+			global: false,
+			soundwaves: false,
+			loop: false,
+		},
 	});
 
 	// Register socket handler
@@ -109,11 +117,6 @@ Hooks.on('getSceneControlButtons', (controls) => {
 	if (game.user.role < 3) return;
 
 	const bar = controls.find((c) => c.name === 'sounds');
-	//bar.tools.splice(1, 0, {
-	//	name: 'soundbit',
-	//	title: 'Draw Ambient Soundbit',
-	//	icon: 'fas fa-play-circle',
-	//});
 
 	bar.tools.splice(
 		2,
@@ -139,28 +142,33 @@ Hooks.on('getSceneControlButtons', (controls) => {
 
 // Add soundbit checkbox to ambient sound config
 Hooks.on('renderAmbientSoundConfig', (app, html, data) => {
+	const config = Object.assign(game.settings.get(moduleName, 'lastConfig'), app.object.flags[moduleName]);
+
 	const soundbit = $(`
     <fieldset style="margin-bottom: 5px">
     <legend style=" display: inline-flex; justify-content: center; align-items: center; margin: auto; padding-left: 10px;">
-        Soundbit <input style="height: 15px; width: 15px;" type="checkbox" name="flags.${moduleName}.soundbit" ${
-		app.object.getFlag(moduleName, 'soundbit') ? 'checked' : ''
-	}>
+        Soundbit <input style="height: 15px; width: 15px;" type="checkbox" name="flags.${moduleName}.soundbit" ${config.soundbit ? 'checked' : ''}>
     </legend>
-    <p class="notes" style="text-align: center;">Soundbits are only played once, when the GM right clicks its icon.</p>
+    <p class="notes" style="text-align: center;">Soundbits are only played when right-clicked by the GM.</p>
     <div class="form-group">
         <label>Global Sound</label>
-        <input type="checkbox" name="flags.${moduleName}.global" ${app.object.getFlag(moduleName, 'global') ? 'checked' : ''}>
+        <input type="checkbox" name="flags.${moduleName}.global" ${config.global ? 'checked' : ''}>
         <p class="notes">Sound will be played globally for all players, even for those outside its radius.</p>
     </div>
     <div class="form-group">
         <label>Pause Playlists</label>
-        <input type="checkbox" name="flags.${moduleName}.pause" ${app.object.getFlag(moduleName, 'pause') ? 'checked' : ''}>
+        <input type="checkbox" name="flags.${moduleName}.pause" ${config.pause ? 'checked' : ''}>
         <p class="notes">Track will pause while soundbit is playing.</p>
     </div>
     <div class="form-group">
         <label>Emit Soundwaves</label>
-        <input type="checkbox" name="flags.${moduleName}.soundwaves" ${app.object.getFlag(moduleName, 'soundwaves') ? 'checked' : ''}>
+        <input type="checkbox" name="flags.${moduleName}.soundwaves" ${config.soundwaves ? 'checked' : ''}>
         <p class="notes">Emits visible soundwaves when played.</p>
+    </div>
+    <div class="form-group">
+    <label>Loop</label>
+        <input type="checkbox" name="flags.${moduleName}.loop" ${config.loop ? 'checked' : ''}>
+        <p class="notes">Sound will loop once its finished?</p>
     </div>
     </fieldset>
     `);
@@ -169,10 +177,21 @@ Hooks.on('renderAmbientSoundConfig', (app, html, data) => {
 	app.setPosition({ height: 'auto' });
 });
 
-// If flagging ambient sound as soundbit, update radius to 0
-//Hooks.on('preUpdateAmbientSound', (sound, diff, options, userID) => {
-//	if (diff.flags?.[moduleName]?.soundbit) return sound.update({ radius: 0 });
-//});
+// Updates lastConfig setting
+Hooks.on('preUpdateAmbientSound', (sound, diff, options, userID) => {
+	const config = game.settings.get(moduleName, 'lastConfig');
+	const changes = diff.flags?.[moduleName];
+	if (changes === undefined) return;
+	const def = Object.assign({}, sound.flags?.[moduleName]);
+	mergeObject(config, mergeObject(def, changes));
+	game.settings.set(moduleName, 'lastConfig', config);
+});
+Hooks.on('preCreateAmbientSound', (sound) => {
+	const config = game.settings.get(moduleName, 'lastConfig');
+	const def = Object.assign({}, sound.flags[moduleName]);
+	mergeObject(config, def);
+	game.settings.set(moduleName, 'lastConfig', config);
+});
 
 // Re-draw ambient sound objects to apply new tooltip text
 Hooks.on('updateAmbientSound', (sound, options, userID) => {
@@ -213,18 +232,6 @@ function new_ambientSoundRefresh(wrapper) {
 async function cancelDrawing(wrapper, event) {
 	if (ui.controls.tool !== 'soundbit') return wrapper(event);
 }
-
-//async function createSoundbit(wrapper, event) {
-//	wrapper(event);
-//	if (ui.controls.tool !== 'soundbit') return;
-//
-//	const origin = event.data.origin;
-//	const doc = new AmbientSoundDocument({ x: origin.x, y: origin.y, type: 'l', flags: { [moduleName]: { soundbit: true } } }, { parent: canvas.scene });
-//	const sound = new AmbientSound(doc);
-//	this.preview.addChild(sound);
-//	await sound.draw();
-//	sound.sheet.render(true, { top: origin.y - 20, left: origin.x + 40 });
-//}
 
 async function dropSoundbit(wrapper, event, data) {
 	if (!event.shiftKey) return wrapper(event, data);
