@@ -56,6 +56,15 @@ Hooks.once('init', () => {
 		onChange: () => canvas.sounds.placeables.forEach((p) => p.refresh()),
 	});
 
+	game.settings.register(moduleName, 'overrideSoundVolumeSlider', {
+		name: 'Override Volume Slider',
+		hint: 'Changes the AmbientSound volume slider to be closer to the Playlists volume slider.',
+		scope: 'world',
+		type: Boolean,
+		default: true,
+		config: true,
+	});
+
 	game.settings.register(moduleName, 'lastConfig', {
 		scope: 'client',
 		type: Object,
@@ -173,12 +182,28 @@ Hooks.on('renderAmbientSoundConfig', (app, html, data) => {
     </fieldset>
     `);
 
+	const volumeSlider = game.settings.get(moduleName, 'overrideSoundVolumeSlider');
+	if (volumeSlider) {
+		const volume = html.find('.sound-volume');
+		const newVolume = AudioHelper.volumeToInput(app.document.volume);
+		volume.val(newVolume);
+		volume?.next()?.remove();
+	}
+
 	html[0].querySelector(`button[type="submit"]`).before(soundbit[0]);
 	app.setPosition({ height: 'auto' });
 });
 
 // Updates lastConfig setting
 Hooks.on('preUpdateAmbientSound', (sound, diff, options, userID) => {
+	// Update Sound Volume if Needed
+	const volumeSlider = game.settings.get(moduleName, 'overrideSoundVolumeSlider');
+	if (diff.volume && volumeSlider) {
+		const newVolume = AudioHelper.inputToVolume(diff.volume);
+		diff.volume = newVolume;
+	}
+
+	// Save Last Config
 	const config = game.settings.get(moduleName, 'lastConfig');
 	const changes = diff.flags?.[moduleName];
 	if (changes === undefined) return;
@@ -192,10 +217,17 @@ Hooks.on('preCreateAmbientSound', (sound) => {
 	mergeObject(config, def);
 	game.settings.set(moduleName, 'lastConfig', config);
 });
-
 // Re-draw ambient sound objects to apply new tooltip text
 Hooks.on('updateAmbientSound', (sound, options, userID) => {
 	return sound.object.draw();
+});
+// If AmbientSound is deleted, remove soundbit fx
+Hooks.on('destroyAmbientSound', (sound) => {
+	if (sound.soundbit?.playing) {
+		sound.soundbit.stop();
+		resumeMusic(sound.document);
+		CanvasAnimation.terminateAnimation(sound.id);
+	}
 });
 
 function newDeactivate(wrapper) {
@@ -357,12 +389,13 @@ async function playSoundbit(wrapper, event) {
 	await sound.load();
 
 	pauseMusic(this.document);
-	let volume = this.document.getFlag(moduleName, 'global') ? this.document.volume : localVolume(this.document.object);
+	const volume = this.document.getFlag(moduleName, 'global') ? this.document.volume : localVolume(this.document.object);
 
 	// Change volume to exponential
 	//volume = 2 ** (5 * volume - 5);
 
-	sound.play({ volume });
+	const loop = this.document.getFlag(moduleName, 'loop');
+	sound.play({ volume, loop });
 	if (this.document.getFlag(moduleName, 'soundwaves')) createSoundWaves(this.document.object);
 
 	sound.on('end', () => {

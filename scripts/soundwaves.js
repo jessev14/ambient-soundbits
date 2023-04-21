@@ -1,10 +1,13 @@
-export function createSoundWaves(sound) {
-	const size = sound.radius * 1.5;
-	const duration = Math.max(2000, sound.sound.duration * 1000);
+export async function createSoundWaves(ambientSound) {
+	const sound = ambientSound.soundbit;
+
+	const size = ambientSound.radius * 1.5;
+	const duration = Math.max(2000, ambientSound.sound.duration * 1000);
 	const rings = ~~(duration / 2000);
-	const name = sound.id;
-	canvas.ping(
-		{ x: sound.x, y: sound.y },
-		{ size, color: 0xffffff, duration, rings, name, los: { bounds: sound.source.los.bounds, points: sound.source.los.points } }
-	);
+	const name = ambientSound.id;
+
+	while (sound.playing && ambientSound.destroyed === false) {
+		canvas.ping({ x: ambientSound.x, y: ambientSound.y }, { size, color: 0xffffff, duration, rings, name });
+		await new Promise((resolve) => setTimeout(() => resolve(), duration));
+	}
 }
