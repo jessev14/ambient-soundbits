@@ -13,8 +13,10 @@
 		}
 	],
 	"esmodules": ["./scripts/main.js"],
-	"minimumCoreVersion": "10",
-	"compatibleCoreVersion": "10",
+	"compatibility": {
+		"minimum": "10",
+		"verified": "10.291"
+	},
 	"socket": true,
 	"url": "https://github.com/elizeuangelo/fvtt-module-ambient-soundbits",
 	"manifest": "https://raw.githubusercontent.com/elizeuangelo/fvtt-module-ambient-soundbits/main/module.json",
