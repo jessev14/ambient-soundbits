@@ -1,4 +1,4 @@
-![All Downloads](https://img.shields.io/github/downloads/elizeuangelo/fvtt-module-ambient-soundbits/total) ![Latest Release Download Count](https://img.shields.io/github/downloads/elizeuangelo/fvtt-module-ambient-soundbits/latest/ambient-soundbits.zip) [![Forge Installs](https://img.shields.io/badge/dynamic/json?label=Forge%20Installs&query=package.installs&suffix=%25&url=https%3A%2F%2Fforge-vtt.com%2Fapi%2Fbazaar%2Fpackage%2Fambient-soundbits&colorB=4aa94a)](https://forge-vtt.com/bazaar#package=ambient-soundbits)
+![All Downloads](https://img.shields.io/github/downloads/elizeuangelo/fvtt-module-ambient-soundbits/ambient-soundbits.zip) ![Latest Release Download Count](https://img.shields.io/github/downloads/elizeuangelo/fvtt-module-ambient-soundbits/latest/ambient-soundbits.zip) [![Forge Installs](https://img.shields.io/badge/dynamic/json?label=Forge%20Installs&query=package.installs&suffix=%25&url=https%3A%2F%2Fforge-vtt.com%2Fapi%2Fbazaar%2Fpackage%2Fambient-soundbits&colorB=4aa94a)](https://forge-vtt.com/bazaar#package=ambient-soundbits)
 
 This module was funded by a commission. Donations help fund updates and new modules!
 
