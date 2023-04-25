@@ -1,24 +1,16 @@
 {
-	"id": "ambient-soundbits",
-	"title": "Ambient Soundbits",
-	"description": "This module allows GM users to create \"soundbits.\" These are ambient sounds on the canvas that have a radius of 0, but can be activated (via right click or P hotkey) to play the associated sound to all users.",
-	"version": "1.1.1",
-	"authors": [
-		{
-			"name": "jessev14"
-		},
-		{
-			"name": "Elizeu Angelo",
-			"discord": "Magus#9576"
-		}
-	],
-	"esmodules": ["./scripts/main.js"],
-	"compatibility": {
-		"minimum": "10",
-		"verified": "10.291"
-	},
-	"socket": true,
-	"url": "https://github.com/elizeuangelo/fvtt-module-ambient-soundbits",
-	"manifest": "https://raw.githubusercontent.com/elizeuangelo/fvtt-module-ambient-soundbits/main/module.json",
-	"download": "https://github.com/elizeuangelo/fvtt-module-ambient-soundbits/releases/latest/download/ambient-soundbits.zip"
+    "name": "ambient-soundbits",
+    "title": "Ambient Soundbits",
+    "description": "",
+    "version": "1.0.0",
+    "author": "",
+    "esmodules": [
+        "./scripts/main.js"
+    ],
+    "minimumCoreVersion": "9",
+    "compatibleCoreVersion": "9",
+    "socket": true,
+    "url": "https://github.com/jessev14/ambient-soundbits",
+    "manifest": "https://github.com/jessev14/ambient-soundbits/releases/latest/download/module.json",
+    "download": "https://github.com/jessev14/ambient-soundbits/releases/download/1.0.0/module.zip"
 }
