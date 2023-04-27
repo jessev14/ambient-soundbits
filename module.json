@@ -2,15 +2,30 @@
     "name": "ambient-soundbits",
     "title": "Ambient Soundbits",
     "description": "",
+    "authors": [
+        {
+            "name": "enso",
+            "discord": "enso#0361"
+        }
+    ],
     "version": "1.0.0",
-    "author": "",
+    "compatibility": {
+        "minimum": "10",
+        "verified": "10"
+    },
     "esmodules": [
         "./scripts/main.js"
     ],
-    "minimumCoreVersion": "9",
-    "compatibleCoreVersion": "9",
+    "styles": [
+        "./styles/style.css"
+    ],
+    "languages": [],
+    "relationships": {
+    },
+    "flags": {
+    },
     "socket": true,
-    "url": "https://github.com/jessev14/ambient-soundbits",
-    "manifest": "https://github.com/jessev14/ambient-soundbits/releases/latest/download/module.json",
-    "download": "https://github.com/jessev14/ambient-soundbits/releases/download/1.0.0/module.zip"
+    "url": "",
+    "manifest": "",
+    "download": ""
 }
