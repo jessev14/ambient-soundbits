@@ -27,7 +27,6 @@ Hooks.once('init', () => {
 
 	// Change soundbit icon
 	libWrapper.register(moduleName, 'CONFIG.AmbientSound.objectClass.prototype.refreshControl', new_refreshControl, 'WRAPPER');
-	libWrapper.register(moduleName, 'CONFIG.AmbientSound.objectClass.prototype._drawControlIcon', new_drawControlIcon, 'OVERRIDE');
 
 	// Makes so Audio does not play if character is near the sound source
 	libWrapper.register(moduleName, 'CONFIG.AmbientSound.objectClass.prototype.isAudible', isAudible, 'OVERRIDE');
@@ -255,7 +254,7 @@ function new_ambientSoundRefresh(wrapper) {
 			walls: this.document.walls,
 			z: this.document.getFlag('core', 'priority') ?? null,
 		});
-		this.field.beginFill(0xaaddff, 0.15).lineStyle(1, 0xffffff, 0.5).drawShape(this.source.los).endFill();
+		this.field.beginFill(0xaaddff, 0.15).lineStyle(1, 0xffffff, 0.5).drawShape(this.source.shape).endFill();
 	}
 
 	return _this;
@@ -301,15 +300,6 @@ function new_refreshControl(wrapper) {
 	if (this.tooltip) this.tooltip.visible = this.hover;
 }
 
-function new_drawControlIcon() {
-	const size = Math.max(Math.round((canvas.dimensions.size * 0.5) / 20) * 20, 40);
-	const texture = !this.document.getFlag(moduleName, 'soundbit') ? CONFIG.controlIcons.sound : `modules/${moduleName}/img/play-circle-solid.svg`;
-	let icon = new ControlIcon({ texture, size });
-	icon.x -= size * 0.5;
-	icon.y -= size * 0.5;
-	return icon;
-}
-
 function new_canHover(wrapper, user, event) {
 	// Allow soundbits to be hovered on any layer
 	return this.layer.active || this.document.getFlag(moduleName, 'soundbit');
@@ -351,7 +341,7 @@ function localVolume(sound) {
 	// Determine whether the sound is audible, and its greatest audible volume
 	let globalVolume = 0;
 	for (let l of listeners) {
-		if (!sound.source.los?.contains(l.x, l.y)) continue;
+		if (!sound.source.shape?.contains(l.x, l.y)) continue;
 		const distance = Math.hypot(l.x - sound.x, l.y - sound.y);
 		let volume = sound.document.volume;
 		if (sound.document.easing) volume *= canvas.sounds._getEasingVolume(distance, r);
